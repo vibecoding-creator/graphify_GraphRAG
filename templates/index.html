@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphify Audit | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(240 5.9% 90%)",
+                        background: "hsl(0 0% 100%)",
+                        foreground: "hsl(240 10% 3.9%)",
+                        primary: { DEFAULT: "hsl(240 5.9% 10%)", foreground: "hsl(0 0% 98%)" },
+                        secondary: { DEFAULT: "hsl(240 4.8% 95.9%)", foreground: "hsl(240 5.9% 10%)" },
+                        muted: { DEFAULT: "hsl(240 4.8% 95.9%)", foreground: "hsl(240 3.8% 46.1%)" },
+                        destructive: { DEFAULT: "hsl(0 84.2% 60.2%)", foreground: "hsl(0 0% 98%)" }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: hsl(240 5.9% 90%); border-radius: 10px; }
+        .markdown-body p { margin-bottom: 0.75rem; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.85em; }
+        .markdown-body th, .markdown-body td { border: 1px solid hsl(240 5.9% 90%); padding: 0.5rem; }
+        .markdown-body th { background: hsl(240 4.8% 95.9%); }
+        .hidden-dropdown { display: none; }
+    </style>
+</head>
+<body class="bg-background text-foreground font-sans antialiased overflow-hidden">
+
+    <div class="flex h-screen w-full">
+        <!-- Left Panel: Management (40%) -->
+        <div class="w-[40%] flex flex-col border-r border-border p-10 overflow-y-auto bg-white">
+            <header class="mb-12">
+                <div class="flex items-center gap-2.5 mb-2">
+                    <div class="p-1.5 bg-primary rounded-lg shadow-sm"><i data-lucide="network" class="w-5 h-5 text-primary-foreground"></i></div>
+                    <h1 class="text-2xl font-bold tracking-tight">Graphify Audit</h1>
+                </div>
+                <p class="text-sm text-muted-foreground">지식 그래프 기반 3F 리포트 통합 관리</p>
+            </header>
+
+            <main class="flex-1 space-y-10 max-w-xl">
+                <section class="space-y-4">
+                    <label class="text-xs font-bold uppercase tracking-widest text-muted-foreground">리포트 업로드</label>
+                    <form id="uploadForm" action="/api/upload" method="post" enctype="multipart/form-data">
+                        <div id="dropzone" class="group flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center hover:bg-muted/50 cursor-pointer transition-all">
+                            <i data-lucide="upload-cloud" class="h-6 w-6 text-muted-foreground mb-2"></i>
+                            <span class="text-sm font-semibold">클릭하여 리포트 업로드 (.md)</span>
+                            <input type="file" name="file" id="fileInput" accept=".md" class="hidden">
+                            <div id="file-info" class="mt-4 hidden bg-primary/5 px-4 py-1.5 rounded-full text-xs font-bold text-primary"></div>
+                        </div>
+                        <button type="submit" id="submitBtn" class="mt-4 hidden w-full bg-primary text-primary-foreground py-3 rounded-lg text-sm font-bold shadow-sm hover:opacity-90">그래프 분석 및 생성</button>
+                    </form>
+                </section>
+
+                <div class="h-px bg-border/50"></div>
+
+                <section class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold uppercase tracking-widest text-muted-foreground">통합 리포트 목록</label>
+                        <span id="doc-count" class="text-[10px] font-black bg-secondary px-2 py-0.5 rounded text-muted-foreground">0 DOCS</span>
+                    </div>
+                    <div id="global-list" class="grid gap-3"></div>
+                </section>
+
+                <a href="/global" target="_blank" class="flex items-center justify-center gap-2 w-full py-3 border border-border rounded-lg text-sm font-bold hover:bg-secondary transition-all">
+                    <i data-lucide="external-link" class="w-4 h-4"></i> Global Graph 시각화 도구
+                </a>
+            </main>
+        </div>
+
+        <!-- Right Panel: Chat (60%) -->
+        <div class="w-[60%] flex flex-col bg-muted/20 relative">
+            <header class="h-16 flex items-center justify-between px-8 border-b border-border bg-white/80 backdrop-blur-md z-10">
+                <div class="flex items-center gap-3">
+                    <div class="p-1.5 bg-secondary rounded-md shadow-sm"><i data-lucide="sparkles" class="w-4 h-4 text-primary"></i></div>
+                    <div>
+                        <h2 class="text-sm font-bold leading-none">Audit AI Assistant</h2>
+                        <div class="flex items-center gap-1.5 mt-1.5">
+                            <span class="relative flex h-1.5 w-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>
+                            <span class="text-[9px] text-emerald-600 uppercase font-black tracking-widest">Active</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <!-- History Dropdown Button -->
+                    <div class="relative">
+                        <button id="history-toggle" class="flex items-center gap-2 px-3 py-2 hover:bg-secondary rounded-lg text-xs font-bold text-muted-foreground transition-all">
+                            <i data-lucide="history" class="w-4 h-4"></i> 히스토리
+                        </button>
+                        <div id="history-dropdown" class="hidden-dropdown absolute right-0 mt-2 w-72 bg-white border border-border rounded-xl shadow-xl z-20 max-h-[400px] overflow-y-auto p-2">
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground p-2 block border-b border-border mb-2">최근 대화 목록</label>
+                            <div id="session-list" class="space-y-1"></div>
+                        </div>
+                    </div>
+                    <button id="new-chat-btn" title="새 대화" class="p-2 hover:bg-secondary rounded-lg text-primary transition-all"><i data-lucide="plus-circle" class="w-5 h-5"></i></button>
+                </div>
+            </header>
+
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-8 space-y-8 pb-32">
+                <!-- Welcome Message (Injected by JS) -->
+            </div>
+
+            <div class="absolute bottom-0 w-full p-8 bg-gradient-to-t from-muted/50 to-transparent">
+                <div class="max-w-3xl mx-auto flex items-center gap-2 bg-white border border-border rounded-2xl p-1.5 shadow-lg focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+                    <input type="text" id="chat-input" placeholder="분석 질문을 입력하세요..." class="flex-1 px-5 py-3 text-sm outline-none bg-transparent">
+                    <button id="chat-send" class="w-12 h-12 bg-primary text-primary-foreground rounded-xl flex items-center justify-center hover:scale-95 transition-all disabled:opacity-30">
+                        <i data-lucide="arrow-up" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let currentSessionId = null;
+
+        // --- Management Logic ---
+        const fileInput = document.getElementById('fileInput');
+        document.getElementById('dropzone').onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            if (e.target.files[0]) {
+                document.getElementById('file-info').innerText = e.target.files[0].name;
+                document.getElementById('file-info').classList.remove('hidden');
+                document.getElementById('submitBtn').classList.remove('hidden');
+            }
+        };
+
+        async function loadGlobalList() {
+            const res = await fetch('/api/docs');
+            const docs = await res.json();
+            document.getElementById('doc-count').innerText = `${docs.length} DOCS`;
+            document.getElementById('global-list').innerHTML = docs.map(doc => `
+                <div class="flex items-center justify-between gap-4 p-4 bg-white border border-border rounded-xl shadow-sm group hover:shadow-md transition-all">
+                    <span class="text-sm font-semibold break-all text-foreground">${doc.name}</span>
+                    <div class="flex gap-2 shrink-0">
+                        <a href="/api/graph/view/${doc.run_id}" target="_blank" class="text-xs font-bold text-primary hover:bg-secondary px-3 py-1.5 rounded-lg">보기</a>
+                        <button onclick="deleteDoc('${doc.run_id}')" class="text-xs font-bold text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg">삭제</button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+        loadGlobalList();
+
+        async function deleteDoc(id) {
+            if (confirm("리포트를 삭제하시겠습니까?")) {
+                await fetch(`/api/docs/${id}`, { method: 'DELETE' });
+                loadGlobalList();
+            }
+        }
+
+        // --- Chat Logic ---
+        const chatMessages = document.getElementById('chat-messages');
+        const sessionList = document.getElementById('session-list');
+        const historyDropdown = document.getElementById('history-dropdown');
+        const chatInput = document.getElementById('chat-input');
+        const chatSend = document.getElementById('chat-send');
+
+        function showWelcomeMessage() {
+            chatMessages.innerHTML = `
+                <div class="flex gap-4 max-w-[90%] animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div class="w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="bot" class="w-5 h-5 text-primary"></i></div>
+                    <div class="bg-white border border-border rounded-2xl px-5 py-4 text-sm shadow-sm leading-relaxed">
+                        안녕하세요! 분석된 리포트 데이터를 기반으로 궁금한 점을 질문해 주세요.<br>
+                        <div class="mt-4 p-3 bg-secondary/50 rounded-xl text-[11px] font-medium text-muted-foreground border border-border/50">
+                            <strong class="text-primary">추천 질문:</strong> "김하영S 담당자의 주요 이슈를 요약해줘"
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        async function loadSessions() {
+            const res = await fetch('/api/chat/sessions');
+            const sessions = await res.json();
+            sessionList.innerHTML = sessions.map(s => `
+                <div class="flex items-center gap-1 group p-1">
+                    <button onclick="switchSession('${s.id}')" class="flex-1 text-left px-3 py-2 rounded-lg text-[11px] font-medium hover:bg-secondary truncate border border-transparent transition-all ${s.id === currentSessionId ? 'bg-secondary border-border font-bold' : ''}">
+                        ${s.title}
+                    </button>
+                    <button onclick="deleteSession('${s.id}', event)" class="p-1.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </div>
+            `).reverse().join('') || '<p class="text-[10px] text-center p-4 text-muted-foreground">이전 대화가 없습니다.</p>';
+            lucide.createIcons();
+        }
+
+        document.getElementById('history-toggle').onclick = (e) => {
+            e.stopPropagation();
+            historyDropdown.classList.toggle('hidden-dropdown');
+            if (!historyDropdown.classList.contains('hidden-dropdown')) loadSessions();
+        };
+        
+        // 드롭다운 내부 클릭 시 닫힘 방지
+        historyDropdown.onclick = (e) => e.stopPropagation();
+        
+        document.addEventListener('click', () => historyDropdown.classList.add('hidden-dropdown'));
+
+        document.getElementById('new-chat-btn').onclick = () => {
+            currentSessionId = null;
+            showWelcomeMessage();
+        };
+
+        async function switchSession(id) {
+            currentSessionId = id;
+            chatMessages.innerHTML = '';
+            const res = await fetch(`/api/chat/history/${id}`);
+            const history = await res.json();
+            history.forEach(m => appendMessage(m.role, m.content));
+            historyDropdown.classList.add('hidden-dropdown');
+        }
+
+        async function deleteSession(id, event) {
+            if (event) event.stopPropagation();
+            if (confirm("대화를 삭제하시겠습니까?")) {
+                const res = await fetch(`/api/chat/sessions/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    if (currentSessionId === id) { 
+                        currentSessionId = null; 
+                        showWelcomeMessage(); 
+                    }
+                    await loadSessions();
+                } else {
+                    const error = await res.json();
+                    alert("삭제 실패: " + (error.detail || "알 수 없는 오류"));
+                }
+            }
+        }
+
+        async function sendChat() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+            appendMessage('user', message);
+            chatInput.value = '';
+            chatSend.disabled = true;
+
+            const aiWrapper = appendMessage('ai', '');
+            const aiContent = aiWrapper.querySelector('.ai-content');
+            let fullText = '';
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, session_id: currentSessionId })
+                });
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    if (chunk.includes("__SESSION_ID__")) {
+                        currentSessionId = chunk.split("__SESSION_ID__")[1].trim();
+                        continue;
+                    }
+                    fullText += chunk;
+                    aiContent.innerHTML = marked.parse(fullText);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (e) { aiContent.innerText = "Error: " + e.message; }
+            finally { chatSend.disabled = false; lucide.createIcons(); }
+        }
+
+        function appendMessage(sender, text) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex gap-4 ${sender === 'user' ? 'justify-end' : 'max-w-[90%]'}`;
+            if (sender === 'user') {
+                wrapper.innerHTML = `<div class="bg-primary text-primary-foreground rounded-2xl px-5 py-3 text-sm shadow-md">${text}</div>`;
+            } else {
+                wrapper.innerHTML = `
+                    <div class="w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="bot" class="w-5 h-5 text-primary"></i></div>
+                    <div class="ai-content bg-white border border-border rounded-2xl px-5 py-4 text-sm shadow-sm markdown-body leading-relaxed">
+                        ${text === '' ? '<span class="animate-pulse">...</span>' : marked.parse(text)}
+                    </div>`;
+            }
+            chatMessages.appendChild(wrapper);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            lucide.createIcons();
+            return wrapper;
+        }
+
+        chatSend.onclick = sendChat;
+        chatInput.onkeypress = (e) => { if(e.key === 'Enter') sendChat(); };
+        showWelcomeMessage(); // 초기 로드 시 환영 메시지
+    </script>
+</body>
+</html>

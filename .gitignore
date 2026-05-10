@@ -1,0 +1,25 @@
+# 1. 환경 변수 (API 키 포함)
+.env
+
+# 2. 사용자 업로드 데이터 및 임시 파일
+uploads/
+*.md
+!README.md
+!3f_report_sample.md # 샘플 파일만 예외적으로 포함하고 싶을 경우
+
+# 3. 생성된 결과물 및 채팅 이력
+global_out/
+global_graph/
+graphify-out/
+
+# 4. 파이썬 가상환경 및 도구 캐시
+__pycache__/
+*.pyc
+.venv/
+.python-version
+.agents/
+.uv/
+
+# 5. 기타 OS 생성 파일
+.DS_Store
+Thumbs.db
